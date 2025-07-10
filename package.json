@@ -1,7 +1,7 @@
 {
-  "name": "ethos-listener",
+  "name": "mvp-listener",
   "version": "1.0.0",
-  "description": "Azure Function App for Ethos Listener",
+  "description": "Azure Function App for MVP Listener",
   "scripts": {
     "start": "func start",
     "test": "echo \"No tests yet...\""

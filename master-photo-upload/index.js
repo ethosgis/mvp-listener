@@ -30,29 +30,49 @@ module.exports = async function (context, req) {
     const busboy = Busboy({ headers: req.headers });
     const fileUploadPromises = [];
     let uploadedFilename = null;
+    let userFileName = null;
 
     try {
         await new Promise((resolve, reject) => {
+            busboy.on('field', (fieldname, val) => {
+                if (fieldname === 'FileName') {
+                    userFileName = val.trim();
+                }
+            });
+
             busboy.on('file', (fieldname, file, filename, encoding, mimetype) => {
-                let finalName = null;
+
+                // Normalize filename object or string
+                let originalFilename = null;
 
                 if (typeof filename === 'string') {
-                    finalName = filename;
+                    originalFilename = filename;
                 } else if (filename && typeof filename === 'object' && typeof filename.filename === 'string') {
-                    finalName = filename.filename;
+                    originalFilename = filename.filename;
                 }
 
-                if (!finalName) {
-                    finalName = `upload-${Date.now()}`;
+                if (!originalFilename) {
+                    reject(new Error("Invalid filename"));
+                    return;
                 }
 
-                uploadedFilename = finalName;
-                const blobName = `UserUpload_${finalName}`;
-                const blockBlobClient = containerClient.getBlockBlobClient(blobName);
+                const ext = originalFilename.toLowerCase().split('.').pop();
+                if (!['jpg', 'jpeg'].includes(ext)) {
+                    reject(new Error("Only .jpg, .jpeg, or .JPG files are allowed"));
+                    return;
+                }
+
+                if (!userFileName) {
+                    reject(new Error("Missing required field: FileName"));
+                    return;
+                }
+
+                uploadedFilename = `master-${userFileName}.jpg`; // Always save as .jpg
+                const blockBlobClient = containerClient.getBlockBlobClient(uploadedFilename);
 
                 const uploadPromise = blockBlobClient.uploadStream(file, undefined, undefined, {
                     blobHTTPHeaders: {
-                        blobContentType: mimetype || 'application/octet-stream'
+                        blobContentType: mimetype || 'image/jpeg'
                     }
                 });
 
@@ -76,11 +96,11 @@ module.exports = async function (context, req) {
 
         context.res = {
             status: 200,
-            body: `${uploadedFilename} Received`
+            body: `File saved as ${uploadedFilename}`
         };
     } catch (err) {
         context.res = {
-            status: 500,
+            status: 400,
             body: "Upload failed: " + err.message
         };
     }
