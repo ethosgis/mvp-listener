@@ -1,0 +1,20 @@
+{
+  "name": "ethos-listener",
+  "version": "1.0.0",
+  "description": "Azure Function App for Ethos Listener",
+  "scripts": {
+    "start": "func start",
+    "test": "echo \"No tests yet...\""
+  },
+  "dependencies": {
+    "@azure/functions": "^4.0.0",
+    "@azure/storage-blob": "^12.27.0",
+    "axios": "^1.9.0",
+    "busboy": "^1.6.0",
+    "dotenv": "^16.5.0",
+    "multiparty": "^4.2.3"
+  },
+  "devDependencies": {
+    "azure-functions-core-tools": "^4.x"
+  }
+}
