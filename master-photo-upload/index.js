@@ -15,9 +15,6 @@ module.exports = async function (context, req) {
         return;
     }
 
-    const blobServiceClient = BlobServiceClient.fromConnectionString(connectionString);
-    const containerClient = blobServiceClient.getContainerClient(containerName);
-
     const contentType = req.headers['content-type'] || req.headers['Content-Type'];
     if (!contentType || !contentType.includes('multipart/form-data')) {
         context.res = {
@@ -27,8 +24,17 @@ module.exports = async function (context, req) {
         return;
     }
 
+    const blobServiceClient = BlobServiceClient.fromConnectionString(connectionString);
+    const containerClient = blobServiceClient.getContainerClient(containerName);
+
+    // Ensure body is a Buffer
+    const bodyBuffer = Buffer.isBuffer(req.body)
+        ? req.body
+        : Buffer.from(req.body);
+
     const busboy = Busboy({ headers: req.headers });
     const fileUploadPromises = [];
+
     let uploadedFilename = null;
     let userFileName = null;
 
@@ -41,35 +47,18 @@ module.exports = async function (context, req) {
             });
 
             busboy.on('file', (fieldname, file, filename, encoding, mimetype) => {
-
-                // Normalize filename object or string
-                let originalFilename = null;
-
-                if (typeof filename === 'string') {
-                    originalFilename = filename;
-                } else if (filename && typeof filename === 'object' && typeof filename.filename === 'string') {
-                    originalFilename = filename.filename;
-                }
-
-                if (!originalFilename) {
-                    reject(new Error("Invalid filename"));
-                    return;
-                }
-
-                const ext = originalFilename.toLowerCase().split('.').pop();
-                if (!['jpg', 'jpeg'].includes(ext)) {
-                    reject(new Error("Only .jpg, .jpeg, or .JPG files are allowed"));
-                    return;
-                }
+                console.log('Received file:', { fieldname, filename, mimetype });
 
                 if (!userFileName) {
-                    reject(new Error("Missing required field: FileName"));
-                    return;
+                    file.resume(); // prevent hanging
+                    return reject(new Error("Missing required field: FileName"));
                 }
 
-                uploadedFilename = `master-${userFileName}.jpg`; // Always save as .jpg
-                const blockBlobClient = containerClient.getBlockBlobClient(uploadedFilename);
+                // Always force filename from FileName field
+                const ext = mimetype === 'image/jpeg' ? 'jpg' : 'jpg'; // force jpg
+                uploadedFilename = `master-${userFileName}.${ext}`;
 
+                const blockBlobClient = containerClient.getBlockBlobClient(uploadedFilename);
                 const uploadPromise = blockBlobClient.uploadStream(file, undefined, undefined, {
                     blobHTTPHeaders: {
                         blobContentType: mimetype || 'image/jpeg'
@@ -90,18 +79,18 @@ module.exports = async function (context, req) {
 
             busboy.on('error', reject);
 
-            const bodyStream = Readable.from(req.rawBody);
-            bodyStream.pipe(busboy);
+            // Pipe collected buffer into Busboy manually
+            Readable.from(bodyBuffer).pipe(busboy);
         });
 
         context.res = {
             status: 200,
-            body: `File saved as ${uploadedFilename}`
+            body: `File uploaded as ${uploadedFilename}`
         };
     } catch (err) {
         context.res = {
             status: 400,
-            body: "Upload failed: " + err.message
+            body: `Upload failed: ${err.message}`
         };
     }
 };

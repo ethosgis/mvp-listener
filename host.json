@@ -12,5 +12,10 @@
     "id": "Microsoft.Azure.Functions.ExtensionBundle",
     "version": "[4.*, 5.0.0)"
   },
-  "functions": ["master-photo-upload"]
+  "functions": ["master-photo-upload"],
+  "extensions": {
+    "http": {
+      "rawBody": true
+    }
+  }
 }
