@@ -6,7 +6,7 @@
       "direction": "in",
       "name": "req",
       "methods": ["post"],
-      "route": "master-photo-upload",
+      "route": "upload",
       "dataType": "binary"
     },
     {
